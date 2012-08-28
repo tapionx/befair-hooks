@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# git pre-commit hook
+
+# reject the commit if it contains some "print"
+
+# allow only certain users listed in "repo-master.conf"
+# to commit on master branch
+
+
