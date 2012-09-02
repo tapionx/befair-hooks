@@ -6,5 +6,5 @@
 #
 # allow only certain users listed in "repo-master.conf"
 # to commit on master branch
-
+#
 
