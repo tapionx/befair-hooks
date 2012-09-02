@@ -1,0 +1,19 @@
+
+# This command inspects the changes staged
+# for commit and looks for 'print'
+
+git diff --staged | sed /^-/d | grep print
+
+# if it finds some prints
+if [ $? -eq 0 ]
+then
+    # rejects the commit
+    echo ' print() found in the code, commit rejected'
+    echo
+    echo ' delete the print and commit again'
+    echo        
+    exit 1
+fi
+
+# allows the commit
+exit 0
