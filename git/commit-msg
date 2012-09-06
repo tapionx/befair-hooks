@@ -1,19 +1,70 @@
+#!/usr/bin/python
 
-# This command inspects the changes staged
-# for commit and looks for 'print'
+# commit-msg hook
+# features:
+#  #1 prevents not allowed users to commit on master branch
+#      (allowed users are listed in a configuration file)
+#  #2 rejects the commit if the code contains 'print()'
+#      (commented out 'print()' are allowed)
 
-git diff --staged | sed /^-/d | grep print
+import subprocess
+import os
+import re
+import sys
 
-# if it finds some prints
-if [ $? -eq 0 ]
-then
-    # rejects the commit
-    echo ' print() found in the code, commit rejected'
-    echo
-    echo ' delete the print and commit again'
-    echo        
-    exit 1
-fi
+# #1 -> prevent not allowed commits on master branch
 
-# allows the commit
-exit 0
+# path of allowed user file
+allowed_config_file = '.git/hooks/repo-masters.conf'
+# read current branch
+current_branch = subprocess.check_output('git status -sb', shell=True).splitlines()[0][3:]
+# if the commit is proposed on master branch
+if current_branch == 'master':
+    # check if allowed user file exists
+    if os.path.exists(allowed_config_file):
+        # export allowed users in a list
+        allowed_users = open(allowed_config_file, 'r').read().splitlines()[1:]
+    else:
+        # nobody is allowed to push on master branch
+        allowed_users = []
+    # extract git user name
+    user_name = subprocess.check_output('git config user.name', shell=True)[:-1]
+    # if current user is not allowed to push on master branch
+    if not user_name in allowed_users :
+        # notify the user
+        print
+        print '[ERROR]'
+        print ' you are not allowed to commit on master branch'
+        print ' create your own dev-branch with "git branch mydevbranch"'
+        print ' COMMIT REJECTED'
+        print
+        # abort commit
+        sys.exit(1)
+
+# #2 -> rejects commit if it contains 'print()'
+
+# read commit message
+commit_msg =  open(sys.argv[1], 'r').read()
+# look for a user ovverride
+if not ':allow_print:' in commit_msg:
+    # this pattern allows commented print()
+    pattern_print = '^\+(\s)*print'
+    # extract the content of the proposed commit
+    diff = subprocess.check_output('git diff --staged', shell=True).splitlines()
+    found_print = False
+    # check every line of the commit
+    for line in diff:
+        # if the line contains 'print'
+        if re.match(pattern_print, line):
+            found_print = True
+    # notify the user
+    if found_print == True:
+        print
+        print '[ERROR]'
+        print ' Submitted commit contains some "print()"'
+        print ' read carefully the guidelines, remove the print and commit again '
+        print """ (try "grep -r 'print' *") """
+        print ' COMMIT REJECTED'
+        print
+        # abort the commit 
+        sys.exit(1)
