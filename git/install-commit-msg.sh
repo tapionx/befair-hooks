@@ -2,7 +2,7 @@
 # This script install git hooks in the git project provided by command line
 
 if [ $# -lt 1 ]; then
-    echo -ne "\nUsage: ./install.sh /path/to/befair/project/\n\n"
+    echo -ne "\nUsage: ./install-commit-msg.sh /path/to/befair/project/\n\n"
     exit
 fi
 

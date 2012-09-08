@@ -1,0 +1,80 @@
+#!/usr/bin/python
+
+# update hook (SERVER-SIDE)
+# features:
+#  #1 prevents not allowed users to commit on master branch
+#      (allowed users are listed in a configuration file)
+#  #2 rejects the push if the code contains 'print()'
+#      (commented out 'print()' are allowed)
+
+import subprocess
+import os
+import re
+import sys
+
+refname      = sys.argv[1]
+old_revision = sys.argv[2]
+new_revision = sys.argv[3]
+
+
+# #1 -> prevent not allowed push on master branch
+
+# path of allowed user file
+allowed_config_file = './hooks/repo-masters.conf'
+# read current branch
+current_branch = refname.split('/')[-1]
+# if the commit is proposed on master branch
+if current_branch == 'master':
+    # check if allowed user file exists
+    if os.path.exists(allowed_config_file):
+        # export allowed users in a list
+        allowed_users = open(allowed_config_file, 'r').read().splitlines()[1:]
+    else:
+        # nobody is allowed to push on master branch
+        allowed_users = []
+    # extract git user name
+    user_name = subprocess.check_output('git log -1 --pretty=format:"%an" '+new_revision, shell=True)
+    # if current user is not allowed to push on master branch
+    if not user_name in allowed_users :
+        # notify the user
+        print
+        print '[ERROR]'
+        print ' you are not allowed to commit on master branch'
+        print ' create your own dev-branch with "git branch mydevbranch"'
+        print ' COMMIT REJECTED'
+        print
+        # abort commit
+        sys.exit(1)
+
+# #2 -> rejects commit if it contains 'print()'
+
+# list all the commits in the push
+commits = subprocess.check_output('git rev-list %s...%s' % (old_revision,new_revision), shell=True).splitlines()
+# iterate over the commits
+for commit in commits:
+    #extract the commit message
+    commit_msg = subprocess.check_output("git cat-file commit %s | sed '1,/^$/d'" % (commit), shell=True)
+    # this pattern allows commented print()
+    pattern_print = '^\+(\s)*print'
+    # look for a user ovverride
+    if not ':allow_print:' in commit_msg:
+        # extract the content of the proposed commit
+        diff = subprocess.check_output('git diff %s %s' % (old_revision, commit), shell=True).splitlines()
+        found_print = False
+        # check every line of the commit
+        for line in diff:
+            # if the line contains 'print'
+            if re.match(pattern_print, line):
+                found_print = True
+        # notify the user
+        if found_print == True:
+            print
+            print '[ERROR] on commit %s' % commit 
+            print ' Submitted commit contains some "print()"'
+            print ' read carefully the guidelines, remove the print,'
+            print ' amend and push again '
+            print """ (try "grep -r 'print' *") """
+            print ' PUSH REJECTED'
+            print
+            # abort the commit 
+            sys.exit(1)
